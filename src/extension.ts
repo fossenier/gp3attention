@@ -5,6 +5,29 @@ import * as vscode from 'vscode';
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+  const calibrationScheme = "calibration";
+  const calibrationUri = vscode.Uri.parse(
+    `${calibrationScheme}://calibrationText`
+  );
+
+  // This is the text we want to show
+  const calibrationText = "The quick brown fox jumps over the lazy dog.";
+
+  // Set up the content provider
+  const calibrationProvider: vscode.TextDocumentContentProvider = {
+    provideTextDocumentContent(uri: vscode.Uri): string {
+      return calibrationText;
+    },
+  };
+
+  // Register the provider
+  const providerRegistration =
+    vscode.workspace.registerTextDocumentContentProvider(
+      calibrationScheme,
+      calibrationProvider
+    );
+  context.subscriptions.push(providerRegistration);
+
   // Use the console to output diagnostic information (console.log) and errors (console.error)
   // This line of code will only be executed once when your extension is activated
   console.log('Congratulations, your extension "gp3attention" is now active!');
@@ -73,8 +96,40 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const showCalibrationText = vscode.commands.registerCommand(
+    "gp3attention.showCalibrationText",
+    async () => {
+      // Save the currently active editor (for restoration later)
+      const previousEditor = vscode.window.activeTextEditor;
+
+      // Open the virtual document
+      const doc = await vscode.workspace.openTextDocument(calibrationUri);
+      await vscode.window.showTextDocument(doc, vscode.ViewColumn.Active);
+
+      // Optionally: After showing the calibration text, wait and restore
+      // Here we use a simple message box to ask the user
+
+      vscode.window
+        .showInformationMessage(
+          "Calibration done! Go back to your previous file?",
+          "Yes",
+          "No"
+        )
+        .then((selection) => {
+          if (selection === "Yes" && previousEditor) {
+            vscode.window.showTextDocument(
+              previousEditor.document,
+              previousEditor.viewColumn
+            );
+          }
+        });
+    }
+  );
+  context.subscriptions.push(showCalibrationText);
+
   context.subscriptions.push(staticGrab);
   context.subscriptions.push(widthGrab);
+  context.subscriptions.push(showCalibrationText);
 }
 
 // This method is called when your extension is deactivated

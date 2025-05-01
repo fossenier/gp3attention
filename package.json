@@ -20,6 +20,10 @@
       {
         "command": "gp3attention.widthGrab",
         "title": "Width Grab"
+      },
+      {
+        "command": "gp3attention.showCalibrationText",
+        "title": "GP3 Attention: Show Calibration Text"
       }
     ]
   },
