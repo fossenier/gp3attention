@@ -15,9 +15,24 @@ export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
     "gp3attention.helloWorld",
     () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showInformationMessage("No active editor!");
+        return;
+      }
+
       // The code you place here will be executed every time your command is executed
       // Display a message box to the user
-      vscode.window.showInformationMessage("Hello World from gp3Attention!");
+      const one = new vscode.Position(0, 0);
+      const two = new vscode.Position(0, 5);
+      const range = new vscode.Range(one, two);
+
+      const document = editor.document;
+      const textInRange = document.getText(range);
+
+      vscode.window.showInformationMessage(
+        `Text in range (0,0)-(0,5): "${textInRange}"`
+      );
     }
   );
 
