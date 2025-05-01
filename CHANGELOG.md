@@ -1,9 +1,23 @@
-# Change Log
+# Changelog
 
 All notable changes to the "gp3attention" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
 ## [Unreleased]
 
-- Initial release
+### Added
+
+- nil
+
+### Changed
+
+- nil
+
+### Removed
+
+- nil
+
+## [0.0.0] - 2025-05-01
+
+### Added
+
+- Initial commit of the extension.
