@@ -14,8 +14,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "gp3attention.helloWorld",
-        "title": "Hello World"
+        "command": "gp3attention.staticGrab",
+        "title": "Static Grab"
+      },
+      {
+        "command": "gp3attention.widthGrab",
+        "title": "Width Grab"
       }
     ]
   },
