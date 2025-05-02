@@ -24,6 +24,10 @@
       {
         "command": "gp3attention.showCalibrationText",
         "title": "GP3 Attention: Show Calibration Text"
+      },
+      {
+        "command": "gp3attention.openCommunication",
+        "title": "GP3 Attention: Open Communication"
       }
     ]
   },

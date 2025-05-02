@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 
+import { OpenGazeTracker } from './openGazeTracker';
+
 export function grabStatically() {
   return vscode.commands.registerCommand("gp3attention.grabStatically", () => {
     const editor = vscode.window.activeTextEditor;
@@ -86,6 +88,23 @@ export function showCalibrationText(uri: vscode.Uri) {
             );
           }
         });
+    }
+  );
+}
+
+export function openCommunication() {
+  return vscode.commands.registerCommand(
+    "gp3attention.openCommunication",
+    () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showInformationMessage("No active editor!");
+        return;
+      }
+
+      // The code you place here will be executed
+      let tracker = new OpenGazeTracker("127.0.0.1", 4242, true);
+      tracker.send("<START_STREAM>");
     }
   );
 }

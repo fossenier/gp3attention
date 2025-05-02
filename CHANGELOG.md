@@ -7,6 +7,7 @@ All notable changes to the "gp3attention" extension will be documented in this f
 ### Added
 
 - Demo commands that show developers (namely @fossenier) how to write extensions.
+- Added code that should connect to the socket.
 
 ### Changed
 
