@@ -104,7 +104,7 @@ export function openCommunication() {
 
       // The code you place here will be executed
       let tracker = new gp3Interface("127.0.0.1", 4242, true);
-      tracker.send("<START_STREAM>");
+      // tracker.send("<START_STREAM>");
     }
   );
 }

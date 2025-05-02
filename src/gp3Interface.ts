@@ -24,6 +24,7 @@ export class gp3Interface {
       this.debugPrint(`Connected to ${this.host}:${this.port}`);
 
       this.send('<SET ID="ENABLE_SEND_DATA" STATE="1" />');
+      this.send('<SET ID="ENABLE_SEND_COUNTER" STATE="1" />');
     });
 
     this.client.on("data", (data: Buffer) => {
