@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { OpenGazeTracker } from './openGazeTracker';
+import { gp3Interface } from './gp3Interface';
 
 export function grabStatically() {
   return vscode.commands.registerCommand("gp3attention.grabStatically", () => {
@@ -103,7 +103,7 @@ export function openCommunication() {
       }
 
       // The code you place here will be executed
-      let tracker = new OpenGazeTracker("127.0.0.1", 4242, true);
+      let tracker = new gp3Interface("127.0.0.1", 4242, true);
       tracker.send("<START_STREAM>");
     }
   );

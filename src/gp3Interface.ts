@@ -1,7 +1,7 @@
 import * as net from 'net';
 import * as vscode from 'vscode';
 
-export class OpenGazeTracker {
+export class gp3Interface {
   private client: net.Socket;
   private isConnected: boolean = false;
   private incomingBuffer: string = "";
@@ -15,7 +15,7 @@ export class OpenGazeTracker {
     debug: boolean = false
   ) {
     this.debug = debug;
-    this.logFile = vscode.window.createOutputChannel("OpenGaze Log");
+    this.logFile = vscode.window.createOutputChannel("gp3Interface Log");
 
     this.client = new net.Socket();
 
