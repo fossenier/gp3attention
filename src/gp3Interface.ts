@@ -91,9 +91,22 @@ export class gp3Interface {
   //   // }
   // }
 
+  private async processIncoming(data: string) {
+    this.debugPrint(`Received data: ${data}`);
+
+    // Split the incoming data into lines
+    const lines = data.split("\n");
+    for (let i = 0; i < lines.length - 1; i++) {
+      const line = lines[i].trim();
+      await this.handleXML(line); // Handle each line as XML
+    }
+    // Keep any partial line for next time
+    // this.incomingBuffer = lines.pop() || "";
+  }
+
   // Example function to parse and handle the XML
-  private async processIncoming(xml: string) {
-    this.debugPrint(`Received data: ${xml}`);
+  private async handleXML(xml: string) {
+    this.debugPrint(`XML processing: ${xml}`);
 
     // Parse the XML string into a JavaScript object
     try {
