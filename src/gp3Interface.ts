@@ -19,7 +19,7 @@ export class gp3Interface {
   private debug: boolean;
   private debugCounter: number = 0;
   private isConnected: boolean = false;
-  private incomingBuffer: string = "";
+  // private incomingBuffer: string = "";
   private logFile: vscode.OutputChannel;
   private unacknowledged: string[] = [];
 
@@ -39,17 +39,7 @@ export class gp3Interface {
       this.debugPrint(`Connected to ${this.host}:${this.port}`);
 
       // Enable data sending from the server by default
-      this.send(true, ENABLE_SEND_DATA, [["STATE", "1"]], false);
-    //     .then(([acknowledged, timedOut]) => {
-    //       if (acknowledged) {
-    //         this.debugPrint("Data sending enabled successfully.");
-    //       } else if (timedOut) {
-    //         this.debugPrint("Failed to enable data sending: timed out.");
-    //       } else {
-    //         this.debugPrint("Failed to enable data sending: not acknowledged.");
-    //       }
-    //     });
-
+      this.send(true, ENABLE_SEND_DATA, [["STATE", "1"]]);
       this.calibrate(); // Start calibration process
     });
 
@@ -84,15 +74,20 @@ export class gp3Interface {
 
   private processIncoming(data: string) {
     this.debugPrint(`Received data: ${data}`);
-    this.incomingBuffer += data;
+
+    // this.incomingBuffer += data;
 
     // Example: process complete lines if using line-delimited protocol
-    let lines = this.incomingBuffer.split("\n");
-    this.incomingBuffer = lines.pop() || ""; // keep any partial line
-
-    for (const line of lines) {
-      this.handleLine(line.trim());
+    let lines = data.split("\n");
+    for (let i = 0; i < lines.length - 1; i++) {
+      this.debugPrint(`Line portion: ${lines[i].trim()}`);
+      this.handleLine(lines[i].trim());
     }
+    // data = lines.pop() || ""; // keep any partial line
+
+    // for (const line of lines) {
+    //   this.handleLine(line.trim());
+    // }
   }
 
   private handleLine(line: string) {
@@ -114,9 +109,6 @@ export class gp3Interface {
       this.debugCounter++;
     }
   }
-
-
-
 
   /**
    * Sends a message to the server.
@@ -163,10 +155,12 @@ export class gp3Interface {
         const elapsed = (Date.now() - startTime) / 1000;
         if (this.unacknowledged.includes(message)) {
           if (elapsed >= max_await) {
-            this.unacknowledged = this.unacknowledged.filter((msg) => msg !== message);
+            this.unacknowledged = this.unacknowledged.filter(
+              (msg) => msg !== message
+            );
             resolve([false, true]);
           } else {
-            setTimeout(checkAcknowledgement, max_await * 1000 / 5); // Check 5 times in the await period
+            setTimeout(checkAcknowledgement, (max_await * 1000) / 5); // Check 5 times in the await period
           }
         } else {
           resolve([true, false]); // Acknowledged
@@ -174,5 +168,5 @@ export class gp3Interface {
       };
       checkAcknowledgement();
     });
-  } 
+  }
 }
