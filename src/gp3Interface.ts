@@ -98,7 +98,9 @@ export class gp3Interface {
     const lines = data.split("\n");
     for (let i = 0; i < lines.length - 1; i++) {
       const line = lines[i].trim();
-      await this.handleXML(line); // Handle each line as XML
+      if (line !== "<REC />") {
+        await this.handleLine(line); // Handle each line as needed
+      }
     }
     // Keep any partial line for next time
     // this.incomingBuffer = lines.pop() || "";
@@ -132,43 +134,69 @@ export class gp3Interface {
           case CALIBRATE_TIMEOUT:
             console.log(`Timeout value: ${ack.VALUE}`);
             break;
+          case ENABLE_SEND_COUNTER:
+            console.log(`Enable send counter: ${ack.STATE}`);
+            break;
+          case ENABLE_SEND_CURSOR:
+            console.log(`Enable send cursor: ${ack.STATE}`);
+            break;
+          case ENABLE_SEND_DATA:
+            console.log(`Enable send data: ${ack.STATE}`);
+            break;
+          case ENABLE_SEND_POG_BEST:
+            console.log(`Enable send POG best: ${ack.STATE}`);
+            break;
+          case ENABLE_SEND_POG_FIX:
+            console.log(`Enable send POG fix: ${ack.STATE}`);
+            break;
+          case TRACKER_DISPLAY:
+            console.log(`Tracker display: ${ack.STATE}`);
+            break;
           default:
             console.warn(`Unhandled ACK ID: ${id}`, ack);
         }
       } else if (result.REC) {
-        const rec = result.REC.$; // All REC attributes
+        const recNode = result.REC;
 
-        // Example: read fields, using optional chaining or fallback defaults
-        const cnt = rec.CNT ?? null;
-        const fpogx = rec.FPOGX ?? null;
-        const fpogy = rec.FPOGY ?? null;
-        const fpogs = rec.FPOGS ?? null;
-        const fpogd = rec.FPOGD ?? null;
-        const fpogid = rec.FPOGID ?? null;
-        const fpogv = rec.FPOGV ?? null;
-        const bpogx = rec.BPOGX ?? null;
-        const bpogy = rec.BPOGY ?? null;
-        const bpogv = rec.BPOGV ?? null;
-        const cx = rec.CX ?? null;
-        const cy = rec.CY ?? null;
-        const cs = rec.CS ?? null;
+        const rec = (recNode && typeof recNode === "object" && '$' in recNode)
+          ? recNode.$
+          : {};
 
-        console.log({
-          cnt,
-          fpogx,
-          fpogy,
-          fpogs,
-          fpogd,
-          fpogid,
-          fpogv,
-          bpogx,
-          bpogy,
-          bpogv,
-          cx,
-          cy,
-          cs,
-        });
-      } else {
+        if (Object.keys(rec).length === 0) {
+          console.log("ROC response with no attributes");
+        } else {
+          // Example: read fields, using optional chaining or fallback defaults
+          const cnt = rec.CNT ?? null;
+          const fpogx = rec.FPOGX ?? null;
+          const fpogy = rec.FPOGY ?? null;
+          const fpogs = rec.FPOGS ?? null;
+          const fpogd = rec.FPOGD ?? null;
+          const fpogid = rec.FPOGID ?? null;
+          const fpogv = rec.FPOGV ?? null;
+          const bpogx = rec.BPOGX ?? null;
+          const bpogy = rec.BPOGY ?? null;
+          const bpogv = rec.BPOGV ?? null;
+          const cx = rec.CX ?? null;
+          const cy = rec.CY ?? null;
+          const cs = rec.CS ?? null;
+
+          console.log({
+            cnt,
+            fpogx,
+            fpogy,
+            fpogs,
+            fpogd,
+            fpogid,
+            fpogv,
+            bpogx,
+            bpogy,
+            bpogv,
+            cx,
+            cy,
+            cs,
+          });
+        }
+       } else {
         console.warn("Unknown response type:", result);
       }
     } catch (error) {
