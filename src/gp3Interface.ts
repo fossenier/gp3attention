@@ -1,5 +1,6 @@
 import * as net from 'net';
 import * as vscode from 'vscode';
+import { parseStringPromise } from 'xml2js';
 
 const CALIBRATE_DELAY = "CALIBRATE_DELAY";
 const CALIBRATE_RESET = "CALIBRATE_RESET";
@@ -72,22 +73,94 @@ export class gp3Interface {
     }, 11000);
   }
 
-  private processIncoming(data: string) {
-    this.debugPrint(`Received data: ${data}`);
+  // private processIncoming(data: string) {
+  //   this.debugPrint(`Received data: ${data}`);
 
-    // this.incomingBuffer += data;
+  //   // this.incomingBuffer += data;
 
-    // Example: process complete lines if using line-delimited protocol
-    let lines = data.split("\n");
-    for (let i = 0; i < lines.length - 1; i++) {
-      this.debugPrint(`Line portion: ${lines[i].trim()}`);
-      this.handleLine(lines[i].trim());
+  //   // Example: process complete lines if using line-delimited protocol
+  //   let lines = data.split("\n");
+  //   for (let i = 0; i < lines.length - 1; i++) {
+  //     this.debugPrint(`Line portion: ${lines[i].trim()}`);
+  //     this.handleLine(lines[i].trim());
+  //   }
+  //   // data = lines.pop() || ""; // keep any partial line
+
+  //   // for (const line of lines) {
+  //   //   this.handleLine(line.trim());
+  //   // }
+  // }
+
+  // Example function to parse and handle the XML
+  private async processIncoming(xml: string) {
+    this.debugPrint(`Received data: ${xml}`);
+
+    // Parse the XML string into a JavaScript object
+    try {
+      const result = await parseStringPromise(xml);
+
+      if (result.ACK) {
+        const ack = result.ACK.$; // Attributes are under '$'
+        const id = ack.ID;
+
+        switch (id) {
+          case CALIBRATE_DELAY:
+            console.log(`Delay value: ${ack.VALUE}`);
+            break;
+          case CALIBRATE_RESET:
+            console.log(`Reset PTS: ${ack.PTS}`);
+            break;
+          case CALIBRATE_SHOW:
+            console.log(`Show state: ${ack.STATE}`);
+            break;
+          case CALIBRATE_START:
+            console.log(`Start value: ${ack.VALUE}`);
+            break;
+          case CALIBRATE_TIMEOUT:
+            console.log(`Timeout value: ${ack.VALUE}`);
+            break;
+          default:
+            console.warn(`Unhandled ACK ID: ${id}`, ack);
+        }
+      } else if (result.REC) {
+        const rec = result.REC.$; // All REC attributes
+
+        // Example: read fields, using optional chaining or fallback defaults
+        const cnt = rec.CNT ?? null;
+        const fpogx = rec.FPOGX ?? null;
+        const fpogy = rec.FPOGY ?? null;
+        const fpogs = rec.FPOGS ?? null;
+        const fpogd = rec.FPOGD ?? null;
+        const fpogid = rec.FPOGID ?? null;
+        const fpogv = rec.FPOGV ?? null;
+        const bpogx = rec.BPOGX ?? null;
+        const bpogy = rec.BPOGY ?? null;
+        const bpogv = rec.BPOGV ?? null;
+        const cx = rec.CX ?? null;
+        const cy = rec.CY ?? null;
+        const cs = rec.CS ?? null;
+
+        console.log({
+          cnt,
+          fpogx,
+          fpogy,
+          fpogs,
+          fpogd,
+          fpogid,
+          fpogv,
+          bpogx,
+          bpogy,
+          bpogv,
+          cx,
+          cy,
+          cs,
+        });
+      } else {
+        console.warn("Unknown response type:", result);
+      }
+    } catch (error) {
+      console.error("Error parsing XML:", error);
     }
-    // data = lines.pop() || ""; // keep any partial line
-
-    // for (const line of lines) {
-    //   this.handleLine(line.trim());
-    // }
   }
 
   private handleLine(line: string) {
