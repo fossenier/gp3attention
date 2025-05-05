@@ -14,23 +14,38 @@ const ENABLE_SEND_POG_BEST = "ENABLE_SEND_POG_BEST";
 const ENABLE_SEND_POG_FIX = "ENABLE_SEND_POG_FIX";
 const TRACKER_DISPLAY = "TRACKER_DISPLAY";
 
-// Talks to the gp3 camera over TCP/IP, you need to have the Gazepoint Control running.
+const SET = true;
+const GET = false;
+
+/**
+ * The `gp3Interface` class provides an interface for communicating with a Gazepoint Control server
+ * over a TCP socket. It supports sending commands, receiving responses, and handling calibration
+ * processes for eye-tracking data.
+ *
+ * @remarks
+ * This class is designed to work with the Gazepoint Control API, enabling features such as
+ * calibration, data streaming, and command acknowledgements. It uses XML-based communication
+ * and processes incoming data asynchronously.
+ *
+ * @param host - The hostname or IP address of the Gazepoint Control server. Defaults to "127.0.0.1".
+ * @param port - The port number of the Gazepoint Control server. Defaults to 4242.
+ * @param debug - Whether to enable debug logging. Defaults to `false`.
+ */
 export class gp3Interface {
-  private client: net.Socket;
-  private debug: boolean;
-  private debugCounter: number = 0;
+  private client: net.Socket; // TCP socket for communication
+  private debug: boolean; // Whether to log debug messages
+  private debugCounter: number = 0; // Enumerates messages
   private isConnected: boolean = false;
-  // private incomingBuffer: string = "";
-  private logFile: vscode.OutputChannel;
-  private unacknowledged: string[] = [];
+  private logFile: vscode.OutputChannel; // Display logs in the VS Code output tab
+  private unacknowledged: string[] = []; // For handling acknowledgements
 
   constructor(
     private host: string = "127.0.0.1",
     private port: number = 4242,
     debug: boolean = false
   ) {
-    this.debug = debug; // Set to true to enable debug messages
-    this.logFile = vscode.window.createOutputChannel("gp3Interface Log"); // Log to VS Code output tab
+    this.debug = debug;
+    this.logFile = vscode.window.createOutputChannel("gp3Interface Log");
 
     this.client = new net.Socket();
 
@@ -40,7 +55,7 @@ export class gp3Interface {
       this.debugPrint(`Connected to ${this.host}:${this.port}`);
 
       // Enable data sending from the server by default
-      this.send(true, ENABLE_SEND_DATA, [["STATE", "1"]]);
+      this.send(SET, ENABLE_SEND_DATA, [["STATE", "1"]]);
       this.calibrate(); // Start calibration process
     });
 
@@ -61,62 +76,90 @@ export class gp3Interface {
     });
   }
 
+  /**
+   * Initiates the calibration process for the system.
+   *
+   * This method performs the following steps:
+   * 1. Displays a debug message indicating the start of calibration.
+   * 2. Sends a command to reset the calibration state.
+   * 3. Sends a command to display the calibration interface.
+   * 4. After a 1-second delay, sends a command to start the calibration process.
+   * 5. After an additional 11 seconds (12 seconds total), sends a command to hide the calibration interface.
+   */
   private calibrate() {
     this.debugPrint("Calibrating...");
-    this.send(true, CALIBRATE_RESET);
-    this.send(true, CALIBRATE_SHOW, [["STATE", "1"]]);
+    this.send(SET, CALIBRATE_RESET);
+    this.send(SET, CALIBRATE_SHOW, [["STATE", "1"]]);
     setTimeout(() => {
-      this.send(true, CALIBRATE_START, [["STATE", "1"]]); // Start calibration
-    }, 1000);
+      this.send(SET, CALIBRATE_START, [["STATE", "1"]]);
+    }, 1000); // Begin calibration 1 second after opening the window to allow for delay
     setTimeout(() => {
-      this.send(true, CALIBRATE_SHOW, [["STATE", "0"]]); // Close calibration window
-    }, 11000);
+      this.send(SET, CALIBRATE_SHOW, [["STATE", "0"]]);
+    }, 12000); // Calibration should take about 11 seconds
   }
 
-  // private processIncoming(data: string) {
-  //   this.debugPrint(`Received data: ${data}`);
-
-  //   // this.incomingBuffer += data;
-
-  //   // Example: process complete lines if using line-delimited protocol
-  //   let lines = data.split("\n");
-  //   for (let i = 0; i < lines.length - 1; i++) {
-  //     this.debugPrint(`Line portion: ${lines[i].trim()}`);
-  //     this.handleLine(lines[i].trim());
-  //   }
-  //   // data = lines.pop() || ""; // keep any partial line
-
-  //   // for (const line of lines) {
-  //   //   this.handleLine(line.trim());
-  //   // }
-  // }
-
-  private async processIncoming(data: string) {
-    this.debugPrint(`Received data: ${data}`);
-
-    // Split the incoming data into lines
-    const lines = data.split("\n");
-    for (let i = 0; i < lines.length - 1; i++) {
-      const line = lines[i].trim();
-      if (line !== "<REC />") {
-        await this.handleLine(line); // Handle each line as needed
-      }
+  /**
+   * Closes the connection to the client if it is currently connected.
+   * Ensures that the `end` method is called on the client to terminate the connection.
+   */
+  close() {
+    if (this.isConnected) {
+      this.client.end();
     }
-    // Keep any partial line for next time
-    // this.incomingBuffer = lines.pop() || "";
   }
 
-  // Example function to parse and handle the XML
-  private async handleXML(xml: string) {
-    this.debugPrint(`XML processing: ${xml}`);
+  /**
+   * Logs a debug message to the console and a log file if debugging is enabled.
+   * Each message is prefixed with a timestamp and increments the debug counter.
+   *
+   * @param message - The debug message to be logged.
+   */
+  private debugPrint(message: string) {
+    if (this.debug) {
+      const timestamp = new Date().toISOString();
+      console.log(`[DEBUG ${timestamp}] ${message}`);
+      this.logFile.appendLine(`[DEBUG ${timestamp}] ${message}`);
+      this.debugCounter++;
+    }
+  }
 
+  /**
+   * Handles the processing of an XML string by parsing it into a JavaScript object
+   * and performing actions based on the parsed data.
+   *
+   * @param xml - The XML string to be processed.
+   *
+   * @remarks
+   * This method processes two main types of XML responses:
+   * - `ACK`: Acknowledgment messages with various IDs that trigger specific actions.
+   * - `REC`: Recording data containing various fields, processed every 180th frame.
+   *
+   * The method also logs unhandled acknowledgment IDs and unknown response types.
+   *
+   * @throws Will log an error if the XML parsing fails.
+   *
+   * @example
+   * ```typescript
+   * const xmlString = `<ACK ID="CALIBRATE_DELAY" VALUE="100"/>`;
+   * await handleXML(xmlString);
+   * // Logs: "Delay value: 100"
+   * ```
+   */
+  private async handleXML(xml: string) {
     // Parse the XML string into a JavaScript object
     try {
       const result = await parseStringPromise(xml);
 
       if (result.ACK) {
+        this.debugPrint(`XML processing: ${xml}`);
+
         const ack = result.ACK.$; // Attributes are under '$'
         const id = ack.ID;
+
+        // Acknowledge any messages matching this acknowledged ID
+        this.unacknowledged = this.unacknowledged.filter(
+          (msg) => !msg.includes(id)
+        );
 
         switch (id) {
           case CALIBRATE_DELAY:
@@ -155,48 +198,50 @@ export class gp3Interface {
           default:
             console.warn(`Unhandled ACK ID: ${id}`, ack);
         }
+      } else if (result.cal) {
+        // We don't need to handle calibration data right now
       } else if (result.REC) {
-        const recNode = result.REC;
+        this.debugPrint(`XML processing: ${xml}`);
 
-        const rec = (recNode && typeof recNode === "object" && '$' in recNode)
-          ? recNode.$
-          : {};
+        const rec = result.REC.$;
 
-        if (Object.keys(rec).length === 0) {
-          console.log("ROC response with no attributes");
-        } else {
-          // Example: read fields, using optional chaining or fallback defaults
-          const cnt = rec.CNT ?? null;
-          const fpogx = rec.FPOGX ?? null;
-          const fpogy = rec.FPOGY ?? null;
-          const fpogs = rec.FPOGS ?? null;
-          const fpogd = rec.FPOGD ?? null;
-          const fpogid = rec.FPOGID ?? null;
-          const fpogv = rec.FPOGV ?? null;
-          const bpogx = rec.BPOGX ?? null;
-          const bpogy = rec.BPOGY ?? null;
-          const bpogv = rec.BPOGV ?? null;
-          const cx = rec.CX ?? null;
-          const cy = rec.CY ?? null;
-          const cs = rec.CS ?? null;
+        // Example: read fields, using optional chaining or fallback defaults
+        const cnt = rec.CNT ?? null;
+        const fpogx = rec.FPOGX ?? null;
+        const fpogy = rec.FPOGY ?? null;
+        const fpogs = rec.FPOGS ?? null;
+        const fpogd = rec.FPOGD ?? null;
+        const fpogid = rec.FPOGID ?? null;
+        const fpogv = rec.FPOGV ?? null;
+        const bpogx = rec.BPOGX ?? null;
+        const bpogy = rec.BPOGY ?? null;
+        const bpogv = rec.BPOGV ?? null;
+        const cx = rec.CX ?? null;
+        const cy = rec.CY ?? null;
+        const cs = rec.CS ?? null;
 
-          console.log({
-            cnt,
-            fpogx,
-            fpogy,
-            fpogs,
-            fpogd,
-            fpogid,
-            fpogv,
-            bpogx,
-            bpogy,
-            bpogv,
-            cx,
-            cy,
-            cs,
-          });
+        if (cnt % 180 !== 0) {
+          // Only process every 180th frame
+          return;
         }
-       } else {
+        this.debugPrint(`XML processing: ${xml}`);
+
+        console.log({
+          cnt,
+          fpogx,
+          fpogy,
+          fpogs,
+          fpogd,
+          fpogid,
+          fpogv,
+          bpogx,
+          bpogy,
+          bpogv,
+          cx,
+          cy,
+          cs,
+        });
+      } else {
         console.warn("Unknown response type:", result);
       }
     } catch (error) {
@@ -204,23 +249,25 @@ export class gp3Interface {
     }
   }
 
-  private handleLine(line: string) {
-    // You'd parse your XML or TSV here as needed
-    this.logFile.appendLine(`Data: ${line}`);
-  }
+  /**
+   * Process camera data by taking incoming lines, splitting them, and parsing the XML.
+   *
+   * @param data - The incoming string data to be processed.
+   *               Each line of the data is expected to be separated by a newline character (`\n`).
+   *
+   * @returns A promise that resolves when all lines have been processed.
+   */
+  private async processIncoming(data: string) {
+    this.debugPrint(`Received data: ${data}`);
 
-  close() {
-    if (this.isConnected) {
-      this.client.end();
-    }
-  }
-
-  private debugPrint(message: string) {
-    if (this.debug) {
-      const timestamp = new Date().toISOString();
-      console.log(`[DEBUG ${timestamp}] ${message}`);
-      this.logFile.appendLine(`[DEBUG ${timestamp}] ${message}`);
-      this.debugCounter++;
+    // Split the incoming data into lines
+    const lines = data.split("\n");
+    for (let i = 0; i < lines.length - 1; i++) {
+      const line = lines[i].trim(); // Cut off the '\r' and '\n'
+      if (line !== "<REC />") {
+        // Ignore empty record lines
+        await this.handleXML(line); // Handle each line as needed
+      }
     }
   }
 
@@ -231,9 +278,11 @@ export class gp3Interface {
    * @param parameters A list of parameter key-value pairs to include in the message. [["X", "0.5"], ["Y", "0.1"], ...]
    * @param wait_for_acknowledgement Whether to wait for an acknowledgement from the server.
    * @param max_await The maximum time to wait for an acknowledgement before timing out.
-   * @returns Whether the message was acknowledged and whether the command timed out.
+   * @returns A promise that resolves to a tuple:
+   *          - The first element is a boolean indicating whether the message was acknowledged.
+   *          - The second element is a boolean indicating whether the command timed out.
    */
-  private send(
+  private async send(
     set: boolean,
     id: string,
     parameters: string[][] = [],
@@ -255,7 +304,6 @@ export class gp3Interface {
 
     // Send the message
     this.client.write(message);
-    this.unacknowledged.push(message); // Track unacknowledged messages
     this.debugPrint(`Sent message: ${message.trim()}`);
 
     if (!wait_for_acknowledgement) {
@@ -263,6 +311,7 @@ export class gp3Interface {
     }
 
     // Handle acknowledgement logic
+    this.unacknowledged.push(message); // Track unacknowledged messages
     return new Promise<[boolean, boolean]>((resolve) => {
       const startTime = Date.now();
       const checkAcknowledgement = () => {
