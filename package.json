@@ -28,6 +28,10 @@
       {
         "command": "gp3attention.openCommunication",
         "title": "GP3 Attention: Open Communication"
+      },
+      {
+        "command": "gp3attention.launchTrackingSession",
+        "title": "GP3 Attention: Launch Tracking Session"
       }
     ]
   },
