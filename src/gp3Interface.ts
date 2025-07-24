@@ -1,6 +1,6 @@
-import * as net from 'net';
-import * as vscode from 'vscode';
-import { parseStringPromise } from 'xml2js';
+import * as net from "net";
+import * as vscode from "vscode";
+import { parseStringPromise } from "xml2js";
 
 const CALIBRATE_DELAY = "CALIBRATE_DELAY";
 const CALIBRATE_RESET = "CALIBRATE_RESET";
@@ -53,10 +53,6 @@ export class gp3Interface {
     this.client.connect(this.port, this.host, () => {
       this.isConnected = true;
       this.debugPrint(`Connected to ${this.host}:${this.port}`);
-
-      // Enable data sending from the server by default
-      this.send(SET, ENABLE_SEND_DATA, [["STATE", "1"]]);
-      this.calibrate(); // Start calibration process
     });
 
     // Establish a listenner for incoming data. Handle the data as it comes in.
@@ -77,25 +73,70 @@ export class gp3Interface {
   }
 
   /**
+   * Initiates the process by enabling data transmission from the server
+   * and starting the calibration process.
+   *
+   * - Enables the sending of general data from the server.
+   * - Enables the sending of counter data.
+   * - Enables the sending of the best point of gaze (POG) data.
+   * - Enables the sending of fixation point of gaze (POG) data.
+   * - Starts the calibration process to ensure accurate data collection.
+   */
+  public async begin(): Promise<boolean> {
+    // Wait until the connection is established
+    while (!this.isConnected) {
+      await new Promise((resolve) => setTimeout(resolve, 100)); // Check every 100ms
+    }
+
+    // Enable data sending from the server by default
+    this.send(SET, ENABLE_SEND_DATA, [["STATE", "1"]]);
+    this.send(SET, ENABLE_SEND_COUNTER, [["STATE", "1"]]);
+    this.send(SET, ENABLE_SEND_POG_BEST, [["STATE", "1"]]);
+    this.send(SET, ENABLE_SEND_POG_FIX, [["STATE", "1"]]);
+    return this.calibrate();
+  }
+
+  /**
    * Initiates the calibration process for the system.
    *
-   * This method performs the following steps:
-   * 1. Displays a debug message indicating the start of calibration.
-   * 2. Sends a command to reset the calibration state.
-   * 3. Sends a command to display the calibration interface.
-   * 4. After a 1-second delay, sends a command to start the calibration process.
-   * 5. After an additional 11 seconds (12 seconds total), sends a command to hide the calibration interface.
+   * This method performs a series of asynchronous operations to reset,
+   * display, and start the calibration process. It uses a sequence of
+   * commands sent to the system and resolves a promise once the calibration
+   * process is complete.
+   *
+   * @returns {Promise<boolean>} A promise that resolves to `true` once the
+   * calibration process is successfully completed.
    */
-  private calibrate() {
+  private calibrate(): Promise<boolean> {
     this.debugPrint("Calibrating...");
     this.send(SET, CALIBRATE_RESET);
     this.send(SET, CALIBRATE_SHOW, [["STATE", "1"]]);
-    setTimeout(() => {
-      this.send(SET, CALIBRATE_START, [["STATE", "1"]]);
-    }, 1000); // Begin calibration 1 second after opening the window to allow for delay
-    setTimeout(() => {
-      this.send(SET, CALIBRATE_SHOW, [["STATE", "0"]]);
-    }, 12000); // Calibration should take about 11 seconds
+
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        this.send(SET, CALIBRATE_START, [["STATE", "1"]]);
+        setTimeout(() => {
+          this.send(SET, CALIBRATE_SHOW, [["STATE", "0"]]);
+          resolve(true);
+        }, 10000);
+      }, 1000);
+    });
+  }
+
+  public calibrateUpperLeft(): Promise<boolean> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(true);
+      }, 7000);
+    });
+  }
+
+  public calibrateLowerRight(): Promise<boolean> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(true);
+      }, 7000);
+    });
   }
 
   /**
@@ -151,8 +192,6 @@ export class gp3Interface {
       const result = await parseStringPromise(xml);
 
       if (result.ACK) {
-        this.debugPrint(`XML processing: ${xml}`);
-
         const ack = result.ACK.$; // Attributes are under '$'
         const id = ack.ID;
 
@@ -163,46 +202,44 @@ export class gp3Interface {
 
         switch (id) {
           case CALIBRATE_DELAY:
-            console.log(`Delay value: ${ack.VALUE}`);
+            this.debugPrint(`Delay value: ${ack.VALUE}`);
             break;
           case CALIBRATE_RESET:
-            console.log(`Reset PTS: ${ack.PTS}`);
+            this.debugPrint(`Reset PTS: ${ack.PTS}`);
             break;
           case CALIBRATE_SHOW:
-            console.log(`Show state: ${ack.STATE}`);
+            this.debugPrint(`Show state: ${ack.STATE}`);
             break;
           case CALIBRATE_START:
-            console.log(`Start value: ${ack.VALUE}`);
+            this.debugPrint(`Start value: ${ack.VALUE}`);
             break;
           case CALIBRATE_TIMEOUT:
-            console.log(`Timeout value: ${ack.VALUE}`);
+            this.debugPrint(`Timeout value: ${ack.VALUE}`);
             break;
           case ENABLE_SEND_COUNTER:
-            console.log(`Enable send counter: ${ack.STATE}`);
+            this.debugPrint(`Enable send counter: ${ack.STATE}`);
             break;
           case ENABLE_SEND_CURSOR:
-            console.log(`Enable send cursor: ${ack.STATE}`);
+            this.debugPrint(`Enable send cursor: ${ack.STATE}`);
             break;
           case ENABLE_SEND_DATA:
-            console.log(`Enable send data: ${ack.STATE}`);
+            this.debugPrint(`Enable send data: ${ack.STATE}`);
             break;
           case ENABLE_SEND_POG_BEST:
-            console.log(`Enable send POG best: ${ack.STATE}`);
+            this.debugPrint(`Enable send POG best: ${ack.STATE}`);
             break;
           case ENABLE_SEND_POG_FIX:
-            console.log(`Enable send POG fix: ${ack.STATE}`);
+            this.debugPrint(`Enable send POG fix: ${ack.STATE}`);
             break;
           case TRACKER_DISPLAY:
-            console.log(`Tracker display: ${ack.STATE}`);
+            this.debugPrint(`Tracker display: ${ack.STATE}`);
             break;
           default:
-            console.warn(`Unhandled ACK ID: ${id}`, ack);
+            this.debugPrint(`Unhandled ACK ID: ${id}, ${JSON.stringify(ack)}`);
         }
-      } else if (result.cal) {
+      } else if (result.CAL) {
         // We don't need to handle calibration data right now
       } else if (result.REC) {
-        this.debugPrint(`XML processing: ${xml}`);
-
         const rec = result.REC.$;
 
         // Example: read fields, using optional chaining or fallback defaults
@@ -224,23 +261,23 @@ export class gp3Interface {
           // Only process every 180th frame
           return;
         }
-        this.debugPrint(`XML processing: ${xml}`);
-
-        console.log({
-          cnt,
-          fpogx,
-          fpogy,
-          fpogs,
-          fpogd,
-          fpogid,
-          fpogv,
-          bpogx,
-          bpogy,
-          bpogv,
-          cx,
-          cy,
-          cs,
-        });
+        this.debugPrint(
+          JSON.stringify({
+            cnt,
+            fpogx,
+            fpogy,
+            fpogs,
+            fpogd,
+            fpogid,
+            fpogv,
+            bpogx,
+            bpogy,
+            bpogv,
+            cx,
+            cy,
+            cs,
+          })
+        );
       } else {
         console.warn("Unknown response type:", result);
       }
@@ -258,8 +295,6 @@ export class gp3Interface {
    * @returns A promise that resolves when all lines have been processed.
    */
   private async processIncoming(data: string) {
-    this.debugPrint(`Received data: ${data}`);
-
     // Split the incoming data into lines
     const lines = data.split("\n");
     for (let i = 0; i < lines.length - 1; i++) {

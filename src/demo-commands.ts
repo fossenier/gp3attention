@@ -1,6 +1,6 @@
-import * as vscode from 'vscode';
+import * as vscode from "vscode";
 
-import { gp3Interface } from './gp3Interface';
+import { gp3Interface } from "./gp3Interface";
 
 export function grabStatically() {
   return vscode.commands.registerCommand("gp3attention.grabStatically", () => {
@@ -66,28 +66,60 @@ export function showCalibrationText(uri: vscode.Uri) {
     async () => {
       // Save the currently active editor (for restoration later)
       const previousEditor = vscode.window.activeTextEditor;
+      if (previousEditor) {
+        vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+      }
 
       // Open the virtual document
       const doc = await vscode.workspace.openTextDocument(uri);
       await vscode.window.showTextDocument(doc, vscode.ViewColumn.Active);
 
+      setTimeout(() => {
+        vscode.window
+          .showInformationMessage(
+            "Step 1: Stare at the very first letter you can see for 5 seconds.",
+            "Start 5 seconds",
+            "Cancel"
+          )
+          .then((selection) => {
+            if (selection === "Start 5 seconds") {
+              setTimeout(() => {
+                vscode.window
+                  .showInformationMessage(
+                    "Step 2: Stare at the very last letter you can see for 5 seconds.",
+                    "Start 5 seconds",
+                    "Cancel"
+                  )
+                  .then((selection) => {
+                    if (selection === "Start 5 seconds") {
+                      setTimeout(() => {
+                        vscode.window
+                          .showInformationMessage(
+                            "Calibration done! Go back to your previous file?",
+                            "Yes",
+                            "No"
+                          )
+                          .then((selection) => {
+                            if (selection === "Yes" && previousEditor) {
+                              vscode.commands.executeCommand(
+                                "workbench.action.closeActiveEditor"
+                              );
+                              vscode.window.showTextDocument(
+                                previousEditor.document,
+                                previousEditor.viewColumn
+                              );
+                            }
+                          });
+                      }, 7000);
+                    }
+                  });
+              }, 7000);
+            }
+          });
+      }, 2000);
+
       // Optionally: After showing the calibration text, wait and restore
       // Here we use a simple message box to ask the user
-
-      vscode.window
-        .showInformationMessage(
-          "Calibration done! Go back to your previous file?",
-          "Yes",
-          "No"
-        )
-        .then((selection) => {
-          if (selection === "Yes" && previousEditor) {
-            vscode.window.showTextDocument(
-              previousEditor.document,
-              previousEditor.viewColumn
-            );
-          }
-        });
     }
   );
 }
