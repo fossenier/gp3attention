@@ -28,6 +28,34 @@
       {
         "command": "gp3attention.openCommunication",
         "title": "GP3 Attention: Open Communication"
+      },
+      {
+        "command": "gp3attention.startRecording",
+        "title": "GP3: Start Recording"
+      },
+      {
+        "command": "gp3attention.stopRecording",
+        "title": "GP3: Stop Recording"
+      },
+      {
+        "command": "gp3attention.initializeTagManager",
+        "title": "GP3: Initialize Tag Manager"
+      },
+      {
+        "command": "gp3attention.addTag",
+        "title": "GP3: Add Tag"
+      },
+      {
+        "command": "gp3attention.addTagWithDelay",
+        "title": "GP3: Add Tag with Delay"
+      },
+      {
+        "command": "gp3attention.toggleTagVisibility",
+        "title": "GP3: Toggle Tag Visibility"
+      },
+      {
+        "command": "gp3attention.finalizeSession",
+        "title": "GP3: Finalize Session"
       }
     ]
   },
